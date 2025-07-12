@@ -1,0 +1,83 @@
+@startuml Component Architecture
+
+package "Frontend Components" {
+    [Chat Interface] as ChatUI
+    [File Upload] as Upload
+    [Invoice Table] as Table
+    [Edit Modal] as EditModal
+    [Token Stats] as Stats
+}
+
+package "API Layer" {
+    [Chat Endpoint] as ChatAPI
+    [Invoice CRUD] as InvoiceAPI
+    [Stats Endpoint] as StatsAPI
+    [Upload Handler] as UploadAPI
+}
+
+package "Service Layer" {
+    [Invoice Agent] as Agent
+    [Invoice Service] as InvoiceService
+    [Token Tracker] as TokenService
+    [File Manager] as FileService
+    [Database Service] as DBService
+}
+
+package "Data Access" {
+    [Invoices Repository] as InvoiceRepo
+    [Token Repository] as TokenRepo
+    [Cache Repository] as CacheRepo
+}
+
+package "External APIs" {
+    [Claude API] as Claude
+    [OpenAI API] as OpenAI
+    [File Storage] as Storage
+}
+
+' Frontend connections
+ChatUI --> ChatAPI
+Upload --> UploadAPI
+Table --> InvoiceAPI
+EditModal --> InvoiceAPI
+Stats --> StatsAPI
+
+' API to Service connections
+ChatAPI --> Agent
+ChatAPI --> InvoiceService
+ChatAPI --> TokenService
+InvoiceAPI --> InvoiceService
+StatsAPI --> TokenService
+UploadAPI --> FileService
+
+' Service connections
+Agent --> Claude
+Agent --> OpenAI
+Agent --> TokenService
+InvoiceService --> InvoiceRepo
+TokenService --> TokenRepo
+FileService --> Storage
+
+' Repository connections
+InvoiceRepo --> DBService
+TokenRepo --> DBService
+CacheRepo --> DBService
+
+note right of Agent
+**Agent Capabilities:**
+- Document classification
+- Data extraction
+- Duplicate detection
+- Multi-model support
+- Token optimization
+end note
+
+note left of TokenService
+**Cost Tracking:**
+- Per-operation costs
+- Model-specific pricing
+- Aggregated statistics
+- Cache hit ratios
+end note
+
+@enduml

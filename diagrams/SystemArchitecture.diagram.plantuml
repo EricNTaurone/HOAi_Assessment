@@ -1,0 +1,153 @@
+@startuml Invoice Processing System Architecture
+
+!define RECTANGLE class
+
+package "Frontend Layer" {
+    RECTANGLE Frontend {
+        + Chat Interface
+        + File Upload (Drag & Drop)
+        + Invoice Management Table
+        + Edit Modal
+        + Real-time Updates
+        --
+        Technology: Next.js + Shadcn + Tailwind
+    }
+}
+
+package "Backend Layer" {
+    RECTANGLE APIRoutes {
+        + /api/chat (POST)
+        + /api/invoices (GET, POST, PUT)
+        + /api/token-stats (GET)
+        + /api/upload (POST)
+        --
+        Technology: Next.js API Routes
+    }
+
+    RECTANGLE Services {
+        + InvoiceService
+        + TokenTracker
+        + FileManager
+        + DatabaseService
+        --
+        Business Logic Layer
+    }
+}
+
+package "AI Agent System" {
+    RECTANGLE InvoiceAgent {
+        + classifyDocument()
+        + extractInvoiceData()
+        + checkForDuplicates()
+        + validateExtraction()
+        --
+        Primary: Claude 3.5 Sonnet
+        Fallback: GPT-4o
+    }
+
+    RECTANGLE AgentTools {
+        + Document Analyzer
+        + Invoice Extractor
+        + Duplicate Detector
+        + Validation Agent
+        --
+        Framework: Vercel AI SDK
+    }
+}
+
+package "Data Layer" {
+    database SQLiteDB {
+        RECTANGLE InvoicesTable {
+            + id (PK)
+            + customer_name
+            + vendor_name
+            + invoice_number
+            + invoice_date
+            + due_date
+            + amount
+            + line_items (JSON)
+            + file_path
+            + processed_at
+        }
+
+        RECTANGLE TokenUsageTable {
+            + id (PK)
+            + invoice_id (FK)
+            + operation_type
+            + input_tokens
+            + output_tokens
+            + total_tokens
+            + cost_usd
+            + model_used
+            + cached_tokens
+            + created_at
+        }
+
+        RECTANGLE PromptCacheTable {
+            + id (PK)
+            + cache_key
+            + prompt_hash
+            + cached_response
+            + tokens_saved
+            + expires_at
+        }
+    }
+}
+
+package "External Services" {
+    cloud "AI Models" {
+        RECTANGLE Claude35Sonnet
+        RECTANGLE GPT4o
+    }
+
+    storage "File Storage" {
+        RECTANGLE LocalStorage
+        RECTANGLE CloudStorage
+    }
+}
+
+' Relationships
+Frontend --> APIRoutes : HTTP Requests
+APIRoutes --> Services : Function Calls
+Services --> InvoiceAgent : Agent Invocation
+InvoiceAgent --> AgentTools : Tool Usage
+AgentTools --> Claude35Sonnet : API Calls
+AgentTools --> GPT4o : Fallback API Calls
+
+Services --> InvoicesTable : CRUD Operations
+Services --> TokenUsageTable : Usage Tracking
+Services --> PromptCacheTable : Cache Management
+
+InvoicesTable ||--o{ TokenUsageTable : "tracks usage"
+
+APIRoutes --> LocalStorage : File Operations
+APIRoutes --> CloudStorage : File Backup
+
+note top of InvoiceAgent
+  **Agent Workflow:**
+  1. Document Classification
+  2. Invoice Data Extraction
+  3. Duplicate Detection
+  4. Data Validation
+  5. Cost Tracking
+end note
+
+note bottom of Services
+  **Service Responsibilities:**
+  - Business logic
+  - Data validation
+  - Error handling
+  - Token cost calculation
+  - File management
+end note
+
+note right of SQLiteDB
+  **Database Features:**
+  - ACID compliance
+  - Full-text search
+  - JSON field support
+  - Automated timestamps
+  - Foreign key constraints
+end note
+
+@enduml

@@ -1,0 +1,54 @@
+@startuml Invoice Processing Sequence
+
+actor Admin as "Company Admin"
+participant Frontend as "Next.js Frontend"
+participant ChatAPI as "/api/chat"
+participant InvoiceAgent as "Invoice Agent"
+participant Services as "Backend Services"
+participant Database as "SQLite DB"
+participant Claude as "Claude 3.5 Sonnet"
+
+Admin -> Frontend: Upload invoice file
+Frontend -> Frontend: Convert to base64
+Frontend -> ChatAPI: POST with file + "Process this invoice"
+
+ChatAPI -> InvoiceAgent: classifyDocument(base64)
+InvoiceAgent -> Claude: Analyze document type
+Claude -> InvoiceAgent: Classification result
+InvoiceAgent -> Services: Record token usage
+
+alt Document is not an invoice
+    InvoiceAgent -> ChatAPI: Return error message
+    ChatAPI -> Frontend: Stream error response
+    Frontend -> Admin: Show "Not an invoice" message
+else Document is an invoice
+    ChatAPI -> InvoiceAgent: extractInvoiceData(base64)
+    InvoiceAgent -> Claude: Extract invoice fields
+    Claude -> InvoiceAgent: Structured invoice data
+    InvoiceAgent -> Services: Record token usage
+
+    ChatAPI -> Services: getInvoicesByVendor()
+    Services -> Database: Query existing invoices
+    Database -> Services: Return vendor invoices
+
+    ChatAPI -> InvoiceAgent: checkForDuplicates()
+    InvoiceAgent -> Claude: Compare with existing invoices
+    Claude -> InvoiceAgent: Duplicate analysis
+    InvoiceAgent -> Services: Record token usage
+
+    alt Duplicate detected
+        InvoiceAgent -> ChatAPI: Return duplicate warning
+        ChatAPI -> Frontend: Stream duplicate message
+        Frontend -> Admin: Show duplicate warning
+    else No duplicate found
+        ChatAPI -> Services: saveInvoice()
+        Services -> Database: INSERT invoice
+        Database -> Services: Return invoice ID
+
+        Services -> Services: Calculate total processing cost
+        ChatAPI -> Frontend: Stream success message
+        Frontend -> Admin: Show success + cost info
+    end
+end
+
+@enduml
