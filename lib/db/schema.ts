@@ -101,13 +101,3 @@ export const suggestion = sqliteTable(
 );
 
 export type Suggestion = InferSelectModel<typeof suggestion>;
-
-export const invoices = sqliteTable(
-    'Invoices',
-    {
-        id: text('id').primaryKey().notNull(),
-        userId: text('userId'),
-        
-
-    }
-)
