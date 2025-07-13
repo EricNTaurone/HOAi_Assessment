@@ -7,9 +7,11 @@ import {
     primaryKey,
 } from 'drizzle-orm/sqlite-core';
 import type {InferSelectModel} from 'drizzle-orm';
+import {generateUUID} from "@/lib/utils";
 
 export const chat = sqliteTable('Chat', {
-    id: text('id').primaryKey().notNull(),
+    id: text('id').primaryKey().notNull()
+        .$defaultFn(() => generateUUID()),
     createdAt: integer('createdAt', {mode: 'timestamp'}).notNull(),
     title: text('title').notNull(),
     visibility: text('visibility')
@@ -21,7 +23,8 @@ export const chat = sqliteTable('Chat', {
 export type Chat = InferSelectModel<typeof chat>;
 
 export const message = sqliteTable('Message', {
-    id: text('id').primaryKey().notNull(),
+    id: text('id').primaryKey().notNull()
+        .$defaultFn(() => generateUUID()),
     chatId: text('chatId')
         .notNull()
         .references(() => chat.id),
@@ -55,7 +58,8 @@ export type Vote = InferSelectModel<typeof vote>;
 export const document = sqliteTable(
     'Document',
     {
-        id: text('id').notNull(),
+        id: text('id').notNull()
+            .$defaultFn(() => generateUUID()),
         userId: text('userId'),
         createdAt: integer('createdAt', {mode: 'timestamp'}).notNull(),
         title: text('title').notNull(),

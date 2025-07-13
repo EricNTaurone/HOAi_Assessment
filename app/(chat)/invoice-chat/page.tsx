@@ -52,6 +52,7 @@ async function initializeChatWithThreadId(threadId: string, session: any) {
                     initialMessages={convertToUIMessages(messagesFromDb)}
                     selectedChatModel={DEFAULT_CHAT_MODEL}
                     selectedVisibilityType={chat.visibility}
+                    isNewChat={false}
                 />
                 <DataStreamHandler id={threadId}/>
             </>
@@ -65,6 +66,7 @@ async function initializeChatWithThreadId(threadId: string, session: any) {
                 initialMessages={convertToUIMessages(messagesFromDb)}
                 selectedChatModel={chatModelFromCookie.value}
                 selectedVisibilityType={chat.visibility}
+                isNewChat={false}
             />
             <DataStreamHandler id={threadId}/>
         </>
@@ -86,6 +88,7 @@ async function initializeChatWithoutThreadId() {
                     initialMessages={convertToUIMessages([])}
                     selectedChatModel={DEFAULT_CHAT_MODEL}
                     selectedVisibilityType={'public'}
+                    isNewChat={true}
                 />
                 <DataStreamHandler id={threadId}/>
             </>
@@ -99,6 +102,7 @@ async function initializeChatWithoutThreadId() {
                 initialMessages={convertToUIMessages([])}
                 selectedChatModel={chatModelFromCookie.value}
                 selectedVisibilityType={'public'}
+                isNewChat={true}
             />
             <DataStreamHandler id={threadId}/>
         </>

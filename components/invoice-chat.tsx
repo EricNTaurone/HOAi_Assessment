@@ -2,6 +2,7 @@
 
 import { useChat } from 'ai/react';
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Upload, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -12,16 +13,19 @@ interface InvoiceChatProps {
     initialMessages: any[];
     selectedChatModel: string;
     selectedVisibilityType: string;
+    isNewChat: boolean;
 }
 
 export function InvoiceChat({
                                 id,
                                 initialMessages,
                                 selectedChatModel,
-                                selectedVisibilityType
+                                selectedVisibilityType,
+                                isNewChat
                             }: InvoiceChatProps) {
     const [file, setFile] = useState<File | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const router = useRouter();
 
     const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
         api: '/api/chat/invoice-chat',
@@ -55,6 +59,44 @@ export function InvoiceChat({
         }
     }, []);
 
+    const initializeNewChat = useCallback(async (fileName: string) => {
+        try {
+            // Create an initial message that includes the file name
+            const initialMessage = {
+                role: 'user',
+                content: `Process Invoice: ${fileName}`,
+            };
+
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id,
+                    messages: [initialMessage],
+                    selectedChatModel,
+                }),
+            });
+
+            if (!response.ok) {
+                console.log('response is: ', response);
+                throw new Error('Failed to initialize chat');
+            }
+
+            // Update URL with threadId
+            const url = new URL(window.location.href);
+            url.searchParams.set('threadId', id);
+            router.push(url.pathname + url.search);
+
+            return true;
+        } catch (error) {
+            console.error('Error initializing chat:', error);
+            toast.error('Failed to initialize chat');
+            return false;
+        }
+    }, [id, selectedChatModel, router]);
+
     const processInvoice = useCallback(async () => {
         if (!file) {
             toast.error('Please upload a file first');
@@ -63,9 +105,17 @@ export function InvoiceChat({
 
         setIsProcessing(true);
         try {
+            // If this is a new chat, initialize it first with the file name
+            if (isNewChat) {
+                const chatInitialized = await initializeNewChat(file.name);
+                if (!chatInitialized) {
+                    return;
+                }
+            }
+
             const base64File = await fileToBase64(file);
 
-            // Submit the file for processing
+            // Submit the file for processing to the invoice-chat API
             handleSubmit(new Event('submit'), {
                 data: {
                     file: base64File,
@@ -78,7 +128,7 @@ export function InvoiceChat({
         } finally {
             setIsProcessing(false);
         }
-    }, [file, handleSubmit]);
+    }, [file, isNewChat, initializeNewChat, handleSubmit]);
 
     return (
         <div className="flex flex-col h-full max-w-4xl mx-auto p-4">
@@ -86,7 +136,7 @@ export function InvoiceChat({
             <div className="mb-6">
                 <h1 className="text-2xl font-bold mb-2">Invoice Processing Assistant</h1>
                 <p className="text-gray-600">
-                    Upload your invoice documents and Ill help you extract and process the information.
+                    Upload your invoice documents and I'll help you extract and process the information.
                 </p>
             </div>
 
@@ -122,8 +172,8 @@ export function InvoiceChat({
                         <div className="flex items-center gap-2">
                             <CheckCircle2 className="h-5 w-5 text-green-600" />
                             <span className="text-sm font-medium text-green-800">
-                File Ready: {file.name}
-              </span>
+                                File Ready: {file.name}
+                            </span>
                         </div>
                     </div>
                 )}
@@ -133,7 +183,7 @@ export function InvoiceChat({
             <div className="mb-6">
                 <Button
                     onClick={processInvoice}
-                    disabled={!file || isProcessing || isLoading}
+                    disabled={!isNewChat || !file || isProcessing || isLoading}
                     className="w-full"
                 >
                     {isProcessing || isLoading ? (
@@ -145,6 +195,11 @@ export function InvoiceChat({
                         'Process Invoice'
                     )}
                 </Button>
+                {!isNewChat && (
+                    <p className="text-sm text-gray-500 mt-2 text-center">
+                        Process Invoice is only available for new chats
+                    </p>
+                )}
             </div>
 
             {/* Messages Display */}
