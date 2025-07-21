@@ -9,6 +9,7 @@ import {twMerge} from 'tailwind-merge';
 
 import type {Message as DBMessage, Document} from '@/lib/db/schema';
 import {z} from "zod";
+import { hash } from 'node:crypto';
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -219,6 +220,11 @@ export function getMostRecentUserMessage(messages: Array<Message>) {
     return userMessages.at(-1);
 }
 
+export function getMostRecentMessageOfType(messages: Array<Message>, type: Message['role']) {
+    const output = messages.filter((message) => message.role === type);
+    return output.at(-1);
+}
+
 export function getDocumentTimestampByIndex(
     documents: Array<Document>,
     index: number,
@@ -231,4 +237,8 @@ export function getDocumentTimestampByIndex(
 
 export function createTypedSchema<T>() {
     return <S extends z.ZodType<T>>(schema: S) => schema;
+}
+
+export function hashPrompt(prompt: string): string {
+    return hash('sha256', prompt)
 }

@@ -15,6 +15,20 @@
       "when": 1752378059584,
       "tag": "0001_ordinary_scrambler",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1752643650219,
+      "tag": "0002_pale_virginia_dare",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1752732357949,
+      "tag": "0003_new_omega_sentinel",
+      "breakpoints": true
     }
   ]
 }

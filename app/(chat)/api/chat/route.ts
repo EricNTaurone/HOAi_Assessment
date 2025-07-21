@@ -1,163 +1,98 @@
-import {
-    type Message,
-    createDataStreamResponse,
-    smoothStream,
-    streamText,
-} from 'ai';
+// import { type Message } from "ai";
 
-import {auth} from '@/app/(auth)/auth';
-import {myProvider} from '@/lib/ai/models';
-import {systemPrompt} from '@/lib/ai/prompts';
-import {
-    deleteChatById,
-    getChatById,
-    saveChat,
-    saveMessages,
-} from '@/lib/db/queries';
-import {
-    generateUUID,
-    getMostRecentUserMessage,
-    sanitizeResponseMessages,
-} from '@/lib/utils';
+// import { auth } from "@/app/(auth)/auth";
+// import {
+//   deleteChatById,
+//   getChatById,
+//   saveChat,
+//   saveMessages,
+// } from "@/lib/db/queries";
+// import { getMostRecentMessageOfType } from "@/lib/utils";
 
-import {generateTitleFromUserMessage} from '../../actions';
-import {createDocument} from '@/lib/ai/tools/create-document';
-import {updateDocument} from '@/lib/ai/tools/update-document';
-import {requestSuggestions} from '@/lib/ai/tools/request-suggestions';
-import {getWeather} from '@/lib/ai/tools/get-weather';
+// import { generateTitleFromUserMessage } from "../../actions";
 
-export const maxDuration = 60;
+// export const maxDuration = 60;
 
-export async function POST(request: Request) {
-    console.log('POST /api/chat');
-    try {
-        const {
-            id,
-            messages,
-            selectedChatModel,
-        }: { id: string; messages: Array<Message>; selectedChatModel: string } =
-            await request.json();
+// export async function POST(request: Request) {
+//   try {
+//     const {
+//       id,
+//       messages,
+//       messageType,
+//     }: {
+//       id: string;
+//       messages: Array<Message>;
+//       selectedChatModel: string;
+//       messageType: Message["role"];
+//     } = await request.json();
 
-        const session = await auth();
+//     const session = await auth();
 
-        if (!session || !session.user || !session.user.id) {
-            return new Response('Unauthorized', {status: 401});
-        }
+//     if (!session || !session.user || !session.user.id) {
+//       return new Response("Unauthorized", { status: 401 });
+//     }
 
-        const userMessage = getMostRecentUserMessage(messages);
+//     const userMessage = getMostRecentMessageOfType(
+//       messages,
+//       messageType ? messageType : "user"
+//     );
 
-        if (!userMessage) {
-            return new Response('No user message found', {status: 400});
-        }
+//     if (!userMessage) {
+//       return new Response("No user message found", { status: 400 });
+//     }
 
-        const chat = await getChatById({id});
+//     const chat = await getChatById({ id });
 
-        if (!chat) {
-            const title = await generateTitleFromUserMessage({message: userMessage});
-            await saveChat({id, userId: session.user.id, title});
-        }
+//     if (!chat) {
+//       const title = await generateTitleFromUserMessage({
+//         message: userMessage,
+//       });
+//       await saveChat({ id, userId: session.user.id, title });
+//     }
 
-        await saveMessages({
-            messages: [{...userMessage, createdAt: new Date(), chatId: id}],
-        });
+//     console.log('userMessage', userMessage);
+//     await saveMessages({
+//       messages: [
+//         {
+//           chatId: id,
+//           role: userMessage.role,
+//           content: userMessage.content
+//         },
+//       ],
+//     });
 
-        return createDataStreamResponse({
-            execute: (dataStream) => {
-                const result = streamText({
-                    model: myProvider.languageModel(selectedChatModel),
-                    system: systemPrompt({selectedChatModel}),
-                    messages,
-                    maxSteps: 5,
-                    experimental_activeTools:
-                        selectedChatModel === 'chat-model-reasoning'
-                            ? []
-                            : [
-                                'getWeather',
-                                'createDocument',
-                                'updateDocument',
-                                'requestSuggestions',
-                            ],
-                    experimental_transform: smoothStream({chunking: 'word'}),
-                    experimental_generateMessageId: generateUUID,
-                    tools: {
-                        getWeather,
-                        createDocument: createDocument({session, dataStream}),
-                        updateDocument: updateDocument({session, dataStream}),
-                        requestSuggestions: requestSuggestions({
-                            session,
-                            dataStream,
-                        }),
-                    },
-                    onFinish: async ({response, reasoning}) => {
-                        if (session.user?.id) {
-                            try {
-                                const sanitizedResponseMessages = sanitizeResponseMessages({
-                                    messages: response.messages,
-                                    reasoning,
-                                });
+//     return new Response("Chat saved", { status: 200 });
+//   } catch (error: any) {
+//     console.error("Failed to process chat:", error);
+//     return new Response("An error occurred while processing your request", {
+//       status: 500,
+//     });
+//   }
+// }
 
-                                await saveMessages({
-                                    messages: sanitizedResponseMessages.map((message) => {
-                                        return {
-                                            id: message.id,
-                                            chatId: id,
-                                            role: message.role,
-                                            content: message.content,
-                                            createdAt: new Date(),
-                                        };
-                                    }),
-                                });
-                            } catch (error) {
-                                console.error('Failed to save chat');
-                            }
-                        }
-                    },
-                    experimental_telemetry: {
-                        isEnabled: true,
-                        functionId: 'stream-text',
-                    },
-                });
+// export async function DELETE(request: Request) {
+//   const { searchParams } = new URL(request.url);
+//   const id = searchParams.get("id");
 
-                result.mergeIntoDataStream(dataStream, {
-                    sendReasoning: true,
-                });
-            },
-            onError: () => {
-                return 'Oops, an error occured!';
-            },
-        });
-    }
-    catch (error: any) {
-        console.error('Failed to process chat:', error);
-        return new Response('An error occurred while processing your request', {
-            status: 500,
-        });
-    }
-}
+//   if (!id) {
+//     return new Response("Not Found", { status: 404 });
+//   }
 
-export async function DELETE(request: Request) {
-    const {searchParams} = new URL(request.url);
-    const id = searchParams.get('id');
+//   const session = await auth();
 
-    if (!id) {
-        return new Response('Not Found', {status: 404});
-    }
+//   if (!session || !session.user) {
+//     return new Response("Unauthorized", { status: 401 });
+//   }
 
-    const session = await auth();
+//   try {
+//     const chat = await getChatById({ id });
 
-    if (!session || !session.user) {
-        return new Response('Unauthorized', {status: 401});
-    }
+//     await deleteChatById({ id });
 
-    try {
-        const chat = await getChatById({id});
-
-        await deleteChatById({id});
-
-        return new Response('Chat deleted', {status: 200});
-    } catch (error) {
-        return new Response('An error occurred while processing your request', {
-            status: 500,
-        });
-    }
-}
+//     return new Response("Chat deleted", { status: 200 });
+//   } catch (error) {
+//     return new Response("An error occurred while processing your request", {
+//       status: 500,
+//     });
+//   }
+// }

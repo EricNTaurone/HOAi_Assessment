@@ -3,7 +3,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    ppr: true,
+    ppr: false,
   },
   images: {
     remotePatterns: [
@@ -11,7 +11,7 @@ const nextConfig = {
         hostname: 'avatar.vercel.sh',
       },
     ],
-  },
+  }
 };
 
 export default nextConfig;

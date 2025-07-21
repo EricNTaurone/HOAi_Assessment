@@ -1,118 +1,214 @@
-import {myProvider} from '../models';
+import { generateObject } from "ai";
+import { myProvider } from "@/lib/ai/models";
 import {
-    DocumentClassificationSchema,
-    DocumentClassificationResult,
-    InvoiceSchemaResult, InvoiceSchema, DuplicateIdentificationResult, DuplicateIdentificationSchema
-} from "@/lib/ai/invoice-agent/schema";
+  DocumentClassificationSchema,
+  InvoiceSchema,
+  DuplicateIdentificationSchema,
+  DocumentClassificationResult,
+  InvoiceSchemaResult,
+  DuplicateIdentificationResult,
+} from "./schema";
 import {
-    duplicateIdentificationPrompt,
-    invoiceClassificationPrompt,
-    invoiceExtractionPrompt
-} from "@/lib/ai/invoice-agent/prompts";
-import {generateObject} from "ai";
-import {Invoice} from "@/lib/db/schemas/invoice/schema";
-import {InvoiceDto} from "@/lib/types/invoice.dto";
+  invoiceClassificationPrompt,
+  invoiceExtractionPrompt,
+  duplicateIdentificationPrompt,
+} from "./prompts";
+import { InvoiceDto } from "@/lib/types/invoice.dto";
+import {
+  getPromptCache,
+  upsertPromptCache,
+} from "@/lib/db/schemas/prompt-cache/queries";
+import { generateUUID } from "@/lib/utils";
 
 export class InvoiceAgent {
-    private model = myProvider.languageModel('chat-model-large');
-    private fallbackModel = myProvider.languageModel('chat-model-small');
+  private model = myProvider.languageModel("chat-model-large");
+  private static CLASSIFY_HASH_PREFIX = "Classify::";
+  private static EXTRACT_HASH_PREFIX = "Extract::";
+  private static DUPLICATE_HASH_PREFIX = "Duplicate::";
 
-    async classifyDocument(imageBase64: string): Promise<DocumentClassificationResult> {
-        const {object, usage} = await generateObject({
-            model: this.model,
-            schema: DocumentClassificationSchema,
-            messages: [
-                {
-                    role: 'user',
-                    content: [
-                        {
-                            type: 'text',
-                            text: invoiceClassificationPrompt,
-                        },
-                        {
-                            type: 'image',
-                            image: imageBase64
-                        }
-                    ]
+  async classifyDocument(
+    images: string[]
+  ): Promise<DocumentClassificationResult> {
+    // For multiple images, we'll process the first page primarily
+    const primaryImage = images[0];
 
-                }
-            ]
-        });
-
-        return {
-            isInvoice: object.isInvoice,
-            confidence: object.confidence,
-            reasoning: object.reasoning,
-            tokenUsage: usage
-        }
+    try {
+      const cachedResponse = await getPromptCache(
+        InvoiceAgent.CLASSIFY_HASH_PREFIX + JSON.stringify(images)
+      );
+      if (cachedResponse) {
+        console.log("Using cached response for classification");
+        return JSON.parse(
+          cachedResponse.cachedResponse
+        ) as DocumentClassificationResult;
+      }
+    } catch (error) {
+      console.error("Error fetching cached response:", error);
     }
 
-    async extractInvoiceData(imageBase64: string): Promise<InvoiceSchemaResult> {
-        const {object, usage} = await generateObject({
-            model: this.model,
-            schema: InvoiceSchema,
-            messages: [
-                {
-                    role: 'user',
-                    content: [
-                        {
-                            type: 'text',
-                            text: invoiceExtractionPrompt
-                        },
-                        {
-                            type: 'image',
-                            image: imageBase64
-                        }
-                    ]
-                }
-            ]
-        });
+    const { object, usage } = await generateObject({
+      model: this.model,
+      schema: DocumentClassificationSchema,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text:
+                images.length > 1
+                  ? `${invoiceClassificationPrompt}\n\nNote: This is a multi-page document. I'm showing you the first page, but please consider that invoices can span multiple pages.`
+                  : invoiceClassificationPrompt,
+            },
+            {
+              type: "image",
+              image: `data:image/png;base64,${primaryImage}`,
+            },
+          ],
+        },
+      ],
+    });
 
-        return {
-            ...object,
-            tokenUsage: usage,
-        }
+    const output: DocumentClassificationResult = {
+      isInvoice: object.isInvoice,
+      confidence: object.confidence,
+      reasoning: object.reasoning,
+      tokenUsage: usage,
+    };
+
+    upsertPromptCache({
+      id: generateUUID(),
+      prompt: InvoiceAgent.CLASSIFY_HASH_PREFIX + JSON.stringify(images),
+      cachedResponse: JSON.stringify(output),
+    });
+
+    return output;
+  }
+
+  async extractInvoiceData(images: string[]): Promise<InvoiceSchemaResult> {
+    try {
+      const cachedResponse = await getPromptCache(
+        InvoiceAgent.EXTRACT_HASH_PREFIX + JSON.stringify(images)
+      );
+      if (cachedResponse) {
+        console.log("Using cached response for classification");
+        return JSON.parse(cachedResponse.cachedResponse) as InvoiceSchemaResult;
+      }
+    } catch (error) {
+      console.error("Error fetching cached response:", error);
     }
 
-    async checkForDuplicates(
-        vendorName: string,
-        invoiceNumber: string,
-        amount: number,
-        existingInvoices: InvoiceDto[]
-    ): Promise<DuplicateIdentificationResult> {
-        const {object, usage} = await generateObject({
-            model: this.model,
-            schema: DuplicateIdentificationSchema,
-            messages: [
-                {
-                    role: 'user',
-                    content: [
-                        {
-                            type: 'text',
-                            text: duplicateIdentificationPrompt
-                        },
-                        {
-                            type: 'text',
-                            text: `
+    const content = [
+      {
+        type: "text" as const,
+        text:
+          images.length > 1
+            ? `${invoiceExtractionPrompt}\n\nNote: This is a multi-page document. Please analyze all pages to extract complete invoice information.`
+            : invoiceExtractionPrompt,
+      },
+      ...images.map((image) => ({
+        type: "image" as const,
+        image: `data:image/png;base64,${image}`,
+      })),
+    ];
+
+    const { object, usage } = await generateObject({
+      model: this.model,
+      schema: InvoiceSchema,
+      messages: [
+        {
+          role: "user",
+          content: content,
+        },
+      ],
+    });
+
+    const output: InvoiceSchemaResult = {
+      ...object,
+      tokenUsage: usage,
+    };
+
+    upsertPromptCache({
+      id: generateUUID(),
+      prompt: InvoiceAgent.EXTRACT_HASH_PREFIX + JSON.stringify(images),
+      cachedResponse: JSON.stringify(output),
+    });
+
+    return output;
+  }
+
+  async checkForDuplicates(
+    vendorName: string,
+    invoiceNumber: string,
+    amount: string,
+    existingInvoices: InvoiceDto[]
+  ): Promise<DuplicateIdentificationResult> {
+    try {
+      const cachedResponse = await getPromptCache(
+        InvoiceAgent.DUPLICATE_HASH_PREFIX +
+          JSON.stringify({
+            vendorName,
+            invoiceNumber,
+            amount,
+            existingInvoices,
+          })
+      );
+      if (cachedResponse) {
+        console.log("Using cached response for duplicate identification");
+        return JSON.parse(
+          cachedResponse.cachedResponse
+        ) as DuplicateIdentificationResult;
+      }
+    } catch (error) {
+      console.error("Error fetching cached response:", error);
+    }
+
+    const { object, usage } = await generateObject({
+      model: this.model,
+      schema: DuplicateIdentificationSchema,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: duplicateIdentificationPrompt,
+            },
+            {
+              type: "text",
+              text: `
                             **New Invoice**
                             - Vendor: ${vendorName}
                             - Invoice Number: ${invoiceNumber}
                             - Amount: ${amount}
                             
                             **Existing Invoices**
-                            ${existingInvoices.map(invoice => `- Vendor: ${invoice.vendorName} - Invoice Number: ${invoice.invoiceNumber} - Amount: ${invoice.invoiceAmount}`).join('\n')}
-                            `
-                        }
-                    ]
-                }
-            ]
-        })
+                            ${existingInvoices
+                              .map(
+                                (invoice) =>
+                                  `- Vendor: ${invoice.vendorName} - Invoice Number: ${invoice.invoiceNumber} - Amount: ${invoice.invoiceAmount}`
+                              )
+                              .join("\n")}
+                            `,
+            },
+          ],
+        },
+      ],
+    });
 
-        return {
-            ...object,
-            tokenUsage: usage
-        }
-    }
+    const output: DuplicateIdentificationResult = {
+      ...object,
+      tokenUsage: usage,
+    };
 
+    upsertPromptCache({
+      id: generateUUID(),
+      prompt:
+        InvoiceAgent.DUPLICATE_HASH_PREFIX +
+        JSON.stringify({ vendorName, invoiceNumber, amount, existingInvoices }),
+      cachedResponse: JSON.stringify(output),
+    });
 
+    return output;
+  }
 }

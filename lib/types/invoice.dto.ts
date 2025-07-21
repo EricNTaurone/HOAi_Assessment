@@ -1,14 +1,15 @@
 export interface InvoiceDto {
-    id?: string,
-    createdAt?: number,
-    userId: string,
-    customerName: string,
-    vendorName: string,
-    invoiceNumber: string,
-    invoiceDate: string,
-    invoiceDueDate: string,
-    invoiceAmount: number,
-    lineItems?: LineItem[]
+    id?: string;
+    createdAt?: number;
+    userId: string;
+    chatId: string;
+    customerName: string;
+    vendorName: string;
+    invoiceNumber: string;
+    invoiceDate: string;
+    invoiceDueDate: string;
+    invoiceAmount: string;
+    lineItems?: LineItem[];
 }
 
 export interface LineItem {
@@ -25,7 +26,7 @@ export interface UpdateInvoiceDto {
     invoiceNumber?: string,
     invoiceDate?: string,
     invoiceDueDate?: string,
-    invoiceAmount?: number,
+    invoiceAmount?: string,
     lineItems?: LineItem[]
 }
 

@@ -8,7 +8,7 @@ export interface Invoice {
     vendorName: string,
     invoiceDate: string,
     invoiceNumber: string,
-    invoiceAmount: number,
+    invoiceAmount: string,
     invoiceDueDate: string,
     lineItems?: LineItem[]
 }
@@ -26,7 +26,7 @@ export const InvoiceSchema = createTypedSchema<Invoice>()(
         vendorName: z.string(),
         invoiceDate: z.string(),
         invoiceNumber: z.string(),
-        invoiceAmount: z.number(),
+        invoiceAmount: z.string(),
         invoiceDueDate: z.string(),
         lineItems: z.array(z.object({
             itemName: z.string(),
