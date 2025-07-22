@@ -5,29 +5,15 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1739483549686,
-      "tag": "0000_perfect_dracula",
+      "when": 1753144425053,
+      "tag": "0000_fuzzy_chameleon",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "6",
-      "when": 1752378059584,
-      "tag": "0001_ordinary_scrambler",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1752643650219,
-      "tag": "0002_pale_virginia_dare",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1752732357949,
-      "tag": "0003_new_omega_sentinel",
+      "when": 1753144577996,
+      "tag": "0001_sticky_speed",
       "breakpoints": true
     }
   ]

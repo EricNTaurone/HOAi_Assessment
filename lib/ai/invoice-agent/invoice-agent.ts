@@ -19,6 +19,8 @@ import {
   upsertPromptCache,
 } from "@/lib/db/schemas/prompt-cache/queries";
 import { generateUUID } from "@/lib/utils";
+import { CostUnit, OperationType } from "@/lib/db/schema";
+import { upsertToken } from "@/lib/db/schemas/token/queries";
 
 export class InvoiceAgent {
   private model = myProvider.languageModel("chat-model-large");
@@ -27,7 +29,9 @@ export class InvoiceAgent {
   private static DUPLICATE_HASH_PREFIX = "Duplicate::";
 
   async classifyDocument(
-    images: string[]
+    images: string[],
+    userId: string,
+    invoiceId: string
   ): Promise<DocumentClassificationResult> {
     // For multiple images, we'll process the first page primarily
     const primaryImage = images[0];
@@ -82,10 +86,31 @@ export class InvoiceAgent {
       cachedResponse: JSON.stringify(output),
     });
 
+    try {
+      await upsertToken({
+        id: generateUUID(),
+        userId: userId,
+        invoiceId: invoiceId,
+        operationType: OperationType.CLASSIFICATION,
+        inputTokens: output.tokenUsage.promptTokens,
+        outputTokens: output.tokenUsage.completionTokens,
+        totalTokens: output.tokenUsage.totalTokens,
+        modelUsed: this.modelUsed,
+        createdAt: new Date(),
+        costUnit: CostUnit.USD,
+      });
+    } catch (error) {
+      console.error("Error saving token usage:", error);
+    }
+
     return output;
   }
 
-  async extractInvoiceData(images: string[]): Promise<InvoiceSchemaResult> {
+  async extractInvoiceData(
+    images: string[],
+    userId: string,
+    invoiceId: string
+  ): Promise<InvoiceSchemaResult> {
     try {
       const cachedResponse = await getPromptCache(
         InvoiceAgent.EXTRACT_HASH_PREFIX + JSON.stringify(images)
@@ -134,6 +159,23 @@ export class InvoiceAgent {
       cachedResponse: JSON.stringify(output),
     });
 
+    try {
+      await upsertToken({
+        id: generateUUID(),
+        userId: userId,
+        invoiceId: invoiceId,
+        operationType: OperationType.EXTRACTION,
+        inputTokens: output.tokenUsage.promptTokens,
+        outputTokens: output.tokenUsage.completionTokens,
+        totalTokens: output.tokenUsage.totalTokens,
+        modelUsed: this.modelUsed,
+        createdAt: new Date(),
+        costUnit: CostUnit.USD,
+      });
+    } catch (error) {
+      console.error("Error saving token usage:", error);
+    }
+
     return output;
   }
 
@@ -141,7 +183,9 @@ export class InvoiceAgent {
     vendorName: string,
     invoiceNumber: string,
     amount: string,
-    existingInvoices: InvoiceDto[]
+    existingInvoices: InvoiceDto[],
+    userId: string,
+    invoiceId: string
   ): Promise<DuplicateIdentificationResult> {
     try {
       const cachedResponse = await getPromptCache(
@@ -209,6 +253,27 @@ export class InvoiceAgent {
       cachedResponse: JSON.stringify(output),
     });
 
+    try {
+      await upsertToken({
+        id: generateUUID(),
+        userId: userId,
+        invoiceId: invoiceId,
+        operationType: OperationType.DUPLICATE_CHECK,
+        inputTokens: output.tokenUsage.promptTokens,
+        outputTokens: output.tokenUsage.completionTokens,
+        totalTokens: output.tokenUsage.totalTokens,
+        modelUsed: this.modelUsed,
+        createdAt: new Date(),
+        costUnit: CostUnit.USD,
+      });
+    } catch (error) {
+      console.error("Error saving token usage:", error);
+    }
+
     return output;
+  }
+
+  get modelUsed(): string {
+    return this.model.modelId;
   }
 }

@@ -10,6 +10,7 @@ import {
   SearchType,
 } from "@/lib/types/invoice.dto";
 import { LineItemsModal } from "@/components/line-items-modal";
+import { parseNumber, validateCurrency } from "@/lib/utils/number-parsing";
 import { toast } from "sonner";
 
 interface InvoiceModalProps {
@@ -63,9 +64,18 @@ export default function InvoiceModal({
     }
   }, [isOpen, fetchInvoices]);
 
-  const validateCurrency = (value: string): boolean => {
-    const currencyRegex = /^[\$£€¥₹₽¢₩₪₨₦₡₱₫₭₮₯₲₹₴₵₶₷₸₹₺₻₼₽₾₿]?\d*\.?\d*$/;
-    return currencyRegex.test(value.trim());
+  const calculateLineItemsTotal = (lineItems: any[]): number => {
+    if (!lineItems || lineItems.length === 0) return 0;
+    return lineItems.reduce((sum, item) => {
+      return sum + parseNumber(item.itemTotal || "0");
+    }, 0);
+  };
+
+  const hasAmountMismatch = (invoice: InvoiceDto): boolean => {
+    if (!invoice.lineItems || invoice.lineItems.length === 0) return false;
+    const lineItemsTotal = calculateLineItemsTotal(invoice.lineItems);
+    const invoiceAmount = parseNumber(invoice.invoiceAmount);
+    return Math.abs(lineItemsTotal - invoiceAmount) > 0.01; // Allow for small rounding differences
   };
 
   const sortInvoices = (invoices: InvoiceDto[]): InvoiceDto[] => {
@@ -79,8 +89,8 @@ export default function InvoiceModal({
           bValue = b.vendorName.toLowerCase();
           break;
         case "invoiceAmount":
-          aValue = parseFloat(a.invoiceAmount.replace(/[^\d.-]/g, "")) || 0;
-          bValue = parseFloat(b.invoiceAmount.replace(/[^\d.-]/g, "")) || 0;
+          aValue = parseNumber(a.invoiceAmount);
+          bValue = parseNumber(b.invoiceAmount);
           break;
         case "invoiceDueDate":
           aValue = new Date(a.invoiceDueDate).getTime();
@@ -377,21 +387,37 @@ export default function InvoiceModal({
                           )}
                         </td>
                         <td className="border p-2">
-                          {isEditing ? (
-                            <Input
-                              value={editingData.invoiceAmount || ""}
-                              onChange={(e) =>
-                                setEditingData({
-                                  ...editingData,
-                                  invoiceAmount: e.target.value,
-                                })
-                              }
-                              onClick={(e) => e.stopPropagation()}
-                              placeholder="$0.00"
-                            />
-                          ) : (
-                            invoice.invoiceAmount
-                          )}
+                          <div className="flex items-center gap-2">
+                            {isEditing ? (
+                              <Input
+                                value={editingData.invoiceAmount || ""}
+                                onChange={(e) =>
+                                  setEditingData({
+                                    ...editingData,
+                                    invoiceAmount: e.target.value,
+                                  })
+                                }
+                                onClick={(e) => e.stopPropagation()}
+                                placeholder="$0.00"
+                              />
+                            ) : (
+                              <>
+                                {invoice.invoiceAmount}
+                                {hasAmountMismatch(invoice) && (
+                                  <span
+                                    className="text-red-500 font-bold text-lg"
+                                    title={`Amount mismatch: Invoice amount (${
+                                      invoice.invoiceAmount
+                                    }) doesn't match line items total ($${calculateLineItemsTotal(
+                                      invoice.lineItems || []
+                                    ).toFixed(2)})`}
+                                  >
+                                    ⚠️
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </td>
                         <td className="border p-2 text-center">
                           <Button

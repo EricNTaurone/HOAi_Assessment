@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TrashIcon } from "@/components/icons";
 import { LineItem } from "@/lib/types/invoice.dto";
+import { parseNumber, validateCurrency } from "@/lib/utils/number-parsing";
 import { toast } from "sonner";
 
 interface LineItemsModalProps {
@@ -48,13 +49,12 @@ export function LineItemsModal({
 
     // Auto-calculate total when quantity or price changes
     if (field === "itemQuantity" || field === "itemPrice") {
-      const quantity =
-        parseFloat(
-          field === "itemQuantity" ? value : newItems[index].itemQuantity
-        ) || 0;
-      const price =
-        parseFloat(field === "itemPrice" ? value : newItems[index].itemPrice) ||
-        0;
+      const quantity = parseNumber(
+        field === "itemQuantity" ? value : newItems[index].itemQuantity
+      );
+      const price = parseNumber(
+        field === "itemPrice" ? value : newItems[index].itemPrice
+      );
       newItems[index].itemTotal = (quantity * price).toFixed(2);
     }
 
@@ -63,12 +63,6 @@ export function LineItemsModal({
 
   const deleteItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
-  };
-
-  const validateCurrency = (value: string): boolean => {
-    // Allow currency symbols or plain numbers
-    const currencyRegex = /^[\$£€¥₹₽¢₩₪₨₦₡₱₫₭₮₯₲₹₴₵₶₷₸₹₺₻₼₽₾₿]?\d*\.?\d*$/;
-    return currencyRegex.test(value.trim());
   };
 
   const handleSave = async () => {

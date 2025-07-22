@@ -55,7 +55,7 @@ async function initializeChatWithThreadId(threadId: string, session: any) {
           selectedChatModel={DEFAULT_CHAT_MODEL}
           selectedVisibilityType={chat.visibility}
           isNewChat={isNewChat}
-          userId={session.user.id}
+          user={session.user}
         />
         <DataStreamHandler id={threadId} />
       </>
@@ -71,7 +71,7 @@ async function initializeChatWithThreadId(threadId: string, session: any) {
         selectedChatModel={chatModelFromCookie.value}
         selectedVisibilityType={chat.visibility}
         isNewChat={isNewChat}
-        userId={session.user.id}
+        user={session.user}
       />
       <DataStreamHandler id={threadId} />
     </>
@@ -94,7 +94,7 @@ async function initializeChatWithoutThreadId(session: any) {
           selectedChatModel={DEFAULT_CHAT_MODEL}
           selectedVisibilityType={"public"}
           isNewChat={isNewChat}
-          userId={session.user.id}
+          user={session.user}
         />
         <DataStreamHandler id={threadId} />
       </>
@@ -109,7 +109,7 @@ async function initializeChatWithoutThreadId(session: any) {
         selectedChatModel={chatModelFromCookie.value}
         selectedVisibilityType={"public"}
         isNewChat={isNewChat}
-        userId={session.user.id}
+        user={session.user}
       />
       <DataStreamHandler id={threadId} />
     </>

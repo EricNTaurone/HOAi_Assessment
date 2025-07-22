@@ -2,6 +2,7 @@ import { insertInvoice } from '@/lib/db/schemas/invoice/queries';
 import { InvoiceDto, LineItem } from '@/lib/types/invoice.dto';
 
 interface SaveInvoiceInput {
+  id: string;
   userId: string;
   customerName: string;
   vendorName: string;
@@ -28,7 +29,8 @@ interface SaveInvoiceOutput {
   error?: string;
 }
 
-export async function saveInvoice({ 
+export async function saveInvoice({
+  id,
   userId, 
   customerName, 
   vendorName, 
@@ -43,6 +45,7 @@ export async function saveInvoice({
     console.log(`Saving invoice: ${invoiceNumber} from ${vendorName}`);
     
     const invoiceToSave: InvoiceDto = {
+      id,
       userId,
       customerName,
       vendorName,
@@ -75,7 +78,7 @@ export async function saveInvoice({
     console.error('Error saving invoice:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error during save',
+      error: 'An error occurred while saving the invoice.',
       message: `Failed to save invoice from ${vendorName} (Invoice #${invoiceNumber}). Please try again.`
     };
   }

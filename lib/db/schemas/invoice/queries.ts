@@ -6,6 +6,7 @@ import {
   UpdateInvoiceDto,
   LineItem,
 } from "@/lib/types/invoice.dto";
+import { generateUUID } from "@/lib/utils";
 
 export async function getInvoicesByUserId({
   userId,
@@ -88,9 +89,8 @@ export async function getInvoiceById({
 
 export async function updateInvoice(
   updateData: UpdateInvoiceDto
-): Promise<InvoiceDto> {
+): Promise<void> {
   try {
-    // Build the update object for invoice, excluding undefined values and lineItems
     const updateFields: Partial<Invoice> = {};
 
     if (updateData.customerName !== undefined)
@@ -106,17 +106,17 @@ export async function updateInvoice(
     if (updateData.invoiceAmount !== undefined)
       updateFields.invoiceAmount = updateData.invoiceAmount;
 
-    const finalLineItems: LineItem[] = updateData.lineItems || [];
-
-    // Update invoice
-    const [updated] = await db
-      .update(invoices)
-      .set(updateFields)
-      .where(eq(invoices.id, updateData.id))
-      .returning();
-
-    if (!updated) {
-      throw new Error("Invoice not found");
+    console.log("Updating invoice with fields:", updateData);
+    if (Object.keys(updateFields).length > 0) {
+      const [updated] = await db
+        .update(invoices)
+        .set(updateFields)
+        .where(eq(invoices.id, updateData.id))
+        .returning();
+  
+      if (!updated) {
+        throw new Error("Invoice not found");
+      }
     }
 
     // Update line items if provided
@@ -137,8 +137,6 @@ export async function updateInvoice(
         );
       }
     }
-
-    return convertToDto(updated, finalLineItems);
   } catch (error) {
     console.error("Failed to update invoice in database", error);
     throw error;
@@ -151,6 +149,7 @@ export async function insertInvoice(invoice: InvoiceDto): Promise<InvoiceDto> {
     const [newInvoice] = await db
       .insert(invoices)
       .values({
+        id: invoice.id || generateUUID(),
         userId: invoice.userId,
         customerName: invoice.customerName,
         vendorName: invoice.vendorName,

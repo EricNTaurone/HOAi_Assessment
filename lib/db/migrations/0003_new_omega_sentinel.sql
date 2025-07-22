@@ -1,1 +1,0 @@
-ALTER TABLE `Invoices` ADD `chatId` text NOT NULL REFERENCES Chat(id);

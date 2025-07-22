@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontalIcon } from "@/components/icons";
 import InvoiceModal from "@/components/invoice-modal";
+import TokenUsageModal from "@/components/token-usage-modal";
 
 interface ChatHeaderMenuProps {
   userId?: string;
@@ -17,6 +18,7 @@ interface ChatHeaderMenuProps {
 
 export function ChatHeaderMenu({ userId }: ChatHeaderMenuProps) {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [isTokenUsageModalOpen, setIsTokenUsageModalOpen] = useState(false);
 
   return (
     <>
@@ -34,16 +36,29 @@ export function ChatHeaderMenu({ userId }: ChatHeaderMenuProps) {
             >
               Manage Invoices
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setIsTokenUsageModalOpen(true)}
+              disabled={!userId}
+            >
+              Token Usage Analytics
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
       {userId && (
-        <InvoiceModal
-          isOpen={isInvoiceModalOpen}
-          onClose={() => setIsInvoiceModalOpen(false)}
-          userId={userId}
-        />
+        <>
+          <InvoiceModal
+            isOpen={isInvoiceModalOpen}
+            onClose={() => setIsInvoiceModalOpen(false)}
+            userId={userId}
+          />
+          <TokenUsageModal
+            isOpen={isTokenUsageModalOpen}
+            onClose={() => setIsTokenUsageModalOpen(false)}
+            userId={userId}
+          />
+        </>
       )}
     </>
   );

@@ -1,6 +1,9 @@
-import { InvoiceAgent } from '@/lib/ai/invoice-agent/invoice-agent';
-import { getInvoicesByUserId } from '@/lib/db/schemas/invoice/queries';
-import { LineItem } from '@/lib/types/invoice.dto';
+import { InvoiceAgent } from "@/lib/ai/invoice-agent/invoice-agent";
+import { CostUnit, OperationType } from "@/lib/db/schema";
+import { getInvoicesByUserId } from "@/lib/db/schemas/invoice/queries";
+import { upsertToken } from "@/lib/db/schemas/token/queries";
+import { LineItem } from "@/lib/types/invoice.dto";
+import { generateUUID } from "@/lib/utils";
 
 const invoiceAgent = new InvoiceAgent();
 
@@ -8,6 +11,7 @@ interface ExtractInvoiceDataInput {
   images: string[];
   userId: string;
   fileName: string;
+  invoiceId: string;
 }
 
 interface ExtractInvoiceDataOutput {
@@ -29,28 +33,33 @@ interface ExtractInvoiceDataOutput {
   error?: string;
 }
 
-export async function extractInvoiceData({ images, userId, fileName }: ExtractInvoiceDataInput): Promise<ExtractInvoiceDataOutput> {
+export async function extractInvoiceData({
+  images,
+  userId,
+  fileName,
+  invoiceId,
+}: ExtractInvoiceDataInput): Promise<ExtractInvoiceDataOutput> {
   try {
-    console.log(`Extracting data from invoice: ${fileName}`);
-    console.log(`User ID: ${userId}`);
-    
     // Extract invoice data
-    const extraction = await invoiceAgent.extractInvoiceData(images);
-    console.log('Extraction result:', extraction);
-    
+    const extraction = await invoiceAgent.extractInvoiceData(
+      images,
+      userId,
+      invoiceId
+    );
+
     // Get existing invoices for duplicate check
     const existingInvoices = await getInvoicesByUserId({ userId });
-    
+
     // Check for duplicates
     const duplicateCheck = await invoiceAgent.checkForDuplicates(
       extraction.vendorName,
       extraction.invoiceNumber,
       extraction.invoiceAmount,
-      existingInvoices
+      existingInvoices,
+      userId,
+      invoiceId
     );
-    
-    console.log('Duplicate check result:', duplicateCheck);
-    
+
     return {
       success: true,
       extraction: {
@@ -60,25 +69,25 @@ export async function extractInvoiceData({ images, userId, fileName }: ExtractIn
         invoiceDate: extraction.invoiceDate,
         invoiceDueDate: extraction.invoiceDueDate,
         invoiceAmount: extraction.invoiceAmount,
-        lineItems: extraction.lineItems
+        lineItems: extraction.lineItems,
       },
       duplicateCheck: {
         isDuplicate: duplicateCheck.isDuplicate,
-        reasoning: duplicateCheck.reasoning
+        reasoning: duplicateCheck.reasoning,
       },
-      fileName: fileName
+      fileName: fileName,
     };
   } catch (error) {
-    console.error('Error extracting invoice data:', error);
+    console.error("Error extracting invoice data:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error during extraction',
+      error: "An error occurred while extracting invoice data.",
       extraction: null,
       duplicateCheck: {
         isDuplicate: false,
-        reasoning: 'Extraction failed - could not check for duplicates'
+        reasoning: "Extraction failed - could not check for duplicates",
       },
-      fileName: fileName
+      fileName: fileName,
     };
   }
 }

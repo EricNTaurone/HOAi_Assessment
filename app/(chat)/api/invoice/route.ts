@@ -75,9 +75,9 @@ export async function POST(request: Request): Promise<Response> {
             return new Response('Missing id', {status: 400});
         }
 
-        const result = await updateInvoice(updateData);
+        await updateInvoice(updateData);
 
-        return Response.json(result, {status: 200});
+        return Response.json("Database update successful", {status: 200});
     } catch (error) {
         console.error('Failed to update invoice:', error);
         return new Response('Internal Server Error', {status: 500});

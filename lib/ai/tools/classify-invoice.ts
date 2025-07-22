@@ -1,10 +1,16 @@
-import { InvoiceAgent } from '@/lib/ai/invoice-agent/invoice-agent';
+import { InvoiceAgent } from "@/lib/ai/invoice-agent/invoice-agent";
+import { CostUnit, OperationType } from "@/lib/db/schema";
+import { upsertToken } from "@/lib/db/schemas/token/queries";
+import { generateUUID } from "@/lib/utils";
+import { LanguageModelUsage } from "ai";
 
 const invoiceAgent = new InvoiceAgent();
 
 interface ClassifyInvoiceInput {
   images: string[];
   fileName: string;
+  userId: string;
+  invoiceId: string;
 }
 
 interface ClassifyInvoiceOutput {
@@ -14,33 +20,35 @@ interface ClassifyInvoiceOutput {
   fileName: string;
   pageCount: number;
   error?: string;
+  tokenUsage?: LanguageModelUsage;
 }
 
-export async function classifyInvoice({ images, fileName }: ClassifyInvoiceInput): Promise<ClassifyInvoiceOutput> {
+export async function classifyInvoice({
+  images,
+  fileName,
+  userId,
+  invoiceId,
+}: ClassifyInvoiceInput): Promise<ClassifyInvoiceOutput> {
   try {
-    console.log(`Classifying document: ${fileName}`);
-    console.log(`Number of pages: ${images.length}`);
-    
-    const classification = await invoiceAgent.classifyDocument(images);
-    
-    console.log('Classification result:', classification);
-    
+    const classification = await invoiceAgent.classifyDocument(images, userId, invoiceId);
+
     return {
       success: true,
       isInvoice: classification.isInvoice,
       reasoning: classification.reasoning,
       fileName: fileName,
-      pageCount: images.length
+      pageCount: images.length,
+      tokenUsage: classification.tokenUsage,
     };
   } catch (error) {
-    console.error('Error classifying document:', error);
+    console.error("Error classifying document:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error during classification',
+      error: "An error occurred during classification",
       isInvoice: false,
-      reasoning: 'Classification failed due to an error',
+      reasoning: "Classification failed due to an error",
       fileName: fileName,
-      pageCount: images.length
+      pageCount: images.length,
     };
   }
 }
